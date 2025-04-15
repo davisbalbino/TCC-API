@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upload com Base64</title>
+    <script>
+        function handleImageUpload(event) {
+            const file = event.target.files[0];
+            const reader = new FileReader();
+
+            reader.onload = function () {
+                const base64String = reader.result.split(",")[1]; // Remove o prefixo "data:image/*;base64,"
+                document.getElementById("base64Input").value = base64String;
+            };
+
+            if (file) {
+                reader.readAsDataURL(file); // Lê o arquivo como URL Base64
+            }
+        }
+
+        function handleSubmit(event) {
+            event.preventDefault();
+            const base64String = document.getElementById("base64Input").value;
+
+            // Substituir pela URL da sua API
+            const apiUrl = "http://127.0.0.1:5000/api/analyze_emotion";
+
+            fetch(apiUrl, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ image: base64String }),
+            })
+                .then(response => response.json())
+                .then(data => {
+                    console.log("Resposta da API:", data);
+                    alert("Imagem enviada com sucesso!");
+                })
+                .catch(error => {
+                    console.error("Erro ao enviar a imagem:", error);
+                    alert("Erro ao enviar a imagem.");
+                });
+        }
+    </script>
+</head>
+<body>
+    <h1>Upload de Imagem em Base64</h1>
+    <form onsubmit="handleSubmit(event)">
+        <label for="image">Escolha uma imagem:</label><br><br>
+        <input type="file" id="image" accept="image/*" onchange="handleImageUpload(event)" required><br><br>
+        <input type="hidden" id="base64Input" name="imageBase64">
+        <button type="submit">Enviar</button>
+    </form>
+</body>
+</html>
