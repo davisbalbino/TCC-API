@@ -8,7 +8,6 @@ from io import BytesIO
 app = Flask(__name__)
 CORS(app)  # Permitir CORS para todos os domínios em todas as rotas
 
-
 emotion_mapping = {
     "happy": ("positiva", 0),
     "surprise": ("positiva", 0),
@@ -18,7 +17,6 @@ emotion_mapping = {
     "disgust": ("negativa", 1),
     "neutral": ("positiva", 0)
 }
-
 
 # Rota para receber a imagem e detectar emoções
 @app.route('/api/analyze_emotion', methods=['POST'])
@@ -30,7 +28,6 @@ def analyze_emotion():
             return jsonify({'error': 'Imagem Base64 não fornecida!'}), 400
 
         # Decodifica a imagem Base64
-        
         image_data = base64.b64decode(base64_image)
         image = Image.open(BytesIO(image_data))
 
@@ -41,19 +38,23 @@ def analyze_emotion():
         image.save("uploaded_image.jpg") 
 
         # Analisar emoção com DeepFace
-        
         result = DeepFace.analyze(img_path="uploaded_image.jpg", actions=["emotion"])
         print(result)  # Para inspecionar os dados
 
-        # Convertendo os valores para tipo `float` no dicionário de emoções
+        # Convertendo os valores para tipo float no dicionário de emoções
         emotions = {key: float(value) for key, value in result[0]['emotion'].items()}
         dominant_emotion = result[0]['dominant_emotion']
 
-        return jsonify({'emotion': emotion_mapping[dominant_emotion]}), 200
+        # Obter categoria e valor (0 ou 1)
+        emotion_category, emotion_value = emotion_mapping.get(dominant_emotion, ("neutra", 0))
 
+        # Prints de debug
+        print(f"Emoção dominante detectada: {dominant_emotion}")
+        print(f"Categoria mapeada: {emotion_category}")
+        print(f"Valor final (0 ou 1): {emotion_value}")
 
+        return jsonify({'emotion': emotion_value}), 200
 
-        
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
