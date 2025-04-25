@@ -30,7 +30,7 @@ Esta API foi projetada para funcionar em conjunto com um **front-end** localizad
    - Baixe o projeto ou clone-o usando Git:
 
      ```bash
-     git clone <URL_DO_REPOSITORIO>
+     git clone https://github.com/davisbalbino/TCC-API.git
      ```
 
    - Ou baixe o ZIP e extraia em uma pasta (ex.: `C:\Users\SeuUsuario\TCC`).
@@ -65,6 +65,13 @@ Esta API foi projetada para funcionar em conjunto com um **front-end** localizad
      ```bash
      pip install flask deepface numpy Pillow opencv-python
      ```
+
+   - Ou utilize o arquivo `requirements.txt`. Dessa forma, as versões exatas utilizadas no projeto serão instaladas (recomendado):
+
+     ```bash
+     pip install -r requirements.txt
+     ```  
+
    - Isso instalará:
 
      - `opencv-python`: Captura de vídeo e imagens.
@@ -102,12 +109,12 @@ Esta API foi projetada para funcionar em conjunto com um **front-end** localizad
      python app.py
      ```
 
-## Com o execução da API, dando certo agora vai para o front-end.
+## 🚀 Com o execução da API, dando certo agora vai para o front-end.
 
-## Objetivo geral do projeto:
+## 🎯 Objetivo geral do projeto:
 - Capturar imagens da webcam do usuário, detectar a emoção dominante utilizando Inteligência Artificial (DeepFace), e adaptar dinamicamente a interface do usuário de acordo com a emoção predominante (positiva ou negativa). 
 
-## Detalhes da API
+## 🔍 Detalhes da API
 - Recebe uma imagem em base64 via POST
 - Decodifica e salva a imagem
 - Analisa com DeepFace para detectar emoções
