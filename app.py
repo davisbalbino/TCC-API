@@ -1,14 +1,26 @@
+
 import base64
 from flask import Flask, jsonify, request
-from flask_cors import CORS  # Importar o Flask-CORS
+from flask_cors import CORS
 from deepface import DeepFace
 from PIL import Image, ImageEnhance
 from io import BytesIO
 import cv2
 import numpy as np
+import os
 
 app = Flask(__name__)
 CORS(app)  # Permitir CORS para todos os domínios em todas as rotas
+
+# Define the output folder
+OUTPUT_FOLDER = "output_images"
+
+# Create the output folder if it doesn't exist
+if not os.path.exists(OUTPUT_FOLDER):
+    os.makedirs(OUTPUT_FOLDER)
+
+# Maximum number of frames to process
+MAX_FRAMES = 100
 
 emotion_mapping = {
     "happy": ("positiva", 0),
@@ -39,50 +51,90 @@ def preprocess_image(image_pil):
     image_rgb = cv2.cvtColor(image_cv, cv2.COLOR_BGR2RGB)
     return Image.fromarray(image_rgb)
 
-# Rota para receber a imagem e detectar emoções
+# Rota para receber múltiplas imagens e detectar emoções
 @app.route('/api/analyze_emotion', methods=['POST'])
 def analyze_emotion():
     try:
-        # Captura a imagem Base64 do corpo da requisição
-        base64_image = request.json.get('image', '')
-        if not base64_image:
-            return jsonify({'error': 'Imagem Base64 não fornecida!'}), 400
+        # Captura a lista de imagens Base64 do corpo da requisição
+        data = request.json
+        base64_images = data.get('images', [])
+        if not base64_images:
+            return jsonify({'error': 'Nenhuma imagem Base64 fornecida!'}), 400
 
-        # Decodifica a imagem Base64
-        image_data = base64.b64decode(base64_image)
-        image = Image.open(BytesIO(image_data))
+        # Verificar se o número de frames excede o limite
+        if len(base64_images) > MAX_FRAMES:
+            return jsonify({'error': f'Número de frames excede o limite de {MAX_FRAMES}!'}), 400
 
-        # Converter para RGB (remover canal de transparência)
-        if image.mode == "RGBA":
-            image = image.convert("RGB")
+        # Lista para armazenar resultados
+        results = []
 
-        # Pré-processa a imagem para melhor detecção facial
-        image = preprocess_image(image)
+        # Processar cada imagem
+        for index, base64_image in enumerate(base64_images, start=1):
+            try:
+                # Decodifica a imagem Base64
+                image_data = base64.b64decode(base64_image)
+                image = Image.open(BytesIO(image_data))
 
-        # Salva a imagem temporariamente
-        image.save("uploaded_image.jpg") 
+                # Converter para RGB (remover canal de transparência)
+                if image.mode == "RGBA":
+                    image = image.convert("RGB")
 
-        # Analisar emoção com DeepFace
-        result = DeepFace.analyze(img_path="uploaded_image.jpg", actions=["emotion"])
-        print(result)  # Para inspecionar os dados
+                # Pré-processa a imagem para melhor detecção facial
+                image = preprocess_image(image)
 
-        # Convertendo os valores para tipo `float` no dicionário de emoções
-        emotions = {key: float(value) for key, value in result[0]['emotion'].items()}
-        dominant_emotion = result[0]['dominant_emotion']
+                # Salva a imagem temporariamente para DeepFace
+                temp_image_path = os.path.join(OUTPUT_FOLDER, f"temp_image_{index}.jpg")
+                image.save(temp_image_path)
 
-        # Obter categoria e valor (0 ou 1)
-        emotion_category, emotion_value = emotion_mapping.get(dominant_emotion, ("neutra", 0))
+                # Analisar emoção com DeepFace
+                result = DeepFace.analyze(img_path=temp_image_path, actions=["emotion"], enforce_detection=False)
+                print(f"Frame {index}: {result}")  # Para inspecionar os dados
 
-        # Prints de debug
-        print(f"Emoção dominante detectada: {dominant_emotion}")
-        print(f"Categoria mapeada: {emotion_category}")
-        print(f"Valor final (0 ou 1): {emotion_value}")
+                # Convertendo os valores para tipo `float` no dicionário de emoções
+                emotions = {key: float(value) for key, value in result[0]['emotion'].items()}
+                dominant_emotion = result[0]['dominant_emotion']
 
-        return jsonify({'emotion': emotion_value}), 200
+                # Obter categoria e valor (0 ou 1)
+                emotion_category, emotion_value = emotion_mapping.get(dominant_emotion, ("neutra", 0))
+
+                # Anotar a imagem com a emoção dominante
+                image_cv = cv2.imread(temp_image_path)
+                cv2.putText(image_cv, f"Emotion: {dominant_emotion}", (10, 30),
+                            cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+
+                # Salvar a imagem anotada com nome único
+                output_path = os.path.join(OUTPUT_FOLDER, f"image_{index}.png")
+                cv2.imwrite(output_path, image_cv)
+                print(f"Saved annotated image: {output_path}")
+
+                # Remover a imagem temporária
+                os.remove(temp_image_path)
+
+                # Adicionar resultado à lista
+                results.append({
+                    'frame': index,
+                    'emotion': emotion_value,
+                    'dominant_emotion': dominant_emotion,
+                    'category': emotion_category
+                })
+
+                # Prints de debug
+                print(f"Frame {index} - Emoção dominante detectada: {dominant_emotion}")
+                print(f"Frame {index} - Categoria mapeada: {emotion_category}")
+                print(f"Frame {index} - Valor final (0 ou 1): {emotion_value}")
+
+            except Exception as e:
+                # Continuar com o próximo frame em caso de erro
+                print(f"Erro ao processar frame {index}: {str(e)}")
+                results.append({
+                    'frame': index,
+                    'error': f"Erro ao processar frame: {str(e)}"
+                })
+
+        return jsonify({'results': results}), 200
 
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': f"Erro geral: {str(e)}"}), 500
 
 if __name__ == '__main__':
     app.run(debug=True)
-
