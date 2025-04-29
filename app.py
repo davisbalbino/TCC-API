@@ -65,7 +65,11 @@ def analyze_emotion():
         if len(base64_images) > MAX_FRAMES:
             return jsonify({'error': f'Número de frames excede o limite de {MAX_FRAMES}!'}), 400
 
-        # Lista para armazenar resultados
+        # Contadores de emoções
+        positive_count = 0
+        negative_count = 0
+
+        # Lista para armazenar resultados individuais
         results = []
 
         # Processar cada imagem
@@ -88,29 +92,18 @@ def analyze_emotion():
 
                 # Analisar emoção com DeepFace
                 result = DeepFace.analyze(img_path=temp_image_path, actions=["emotion"], enforce_detection=False)
-                print(f"Frame {index}: {result}")  # Para inspecionar os dados
-
-                # Convertendo os valores para tipo `float` no dicionário de emoções
-                emotions = {key: float(value) for key, value in result[0]['emotion'].items()}
                 dominant_emotion = result[0]['dominant_emotion']
 
                 # Obter categoria e valor (0 ou 1)
                 emotion_category, emotion_value = emotion_mapping.get(dominant_emotion, ("neutra", 0))
 
-                # Anotar a imagem com a emoção dominante
-                image_cv = cv2.imread(temp_image_path)
-                cv2.putText(image_cv, f"Emotion: {dominant_emotion}", (10, 30),
-                            cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+                # Contabilizar emoções
+                if emotion_value == 0:
+                    positive_count += 1
+                else:
+                    negative_count += 1
 
-                # Salvar a imagem anotada com nome único
-                output_path = os.path.join(OUTPUT_FOLDER, f"image_{index}.png")
-                cv2.imwrite(output_path, image_cv)
-                print(f"Saved annotated image: {output_path}")
-
-                # Remover a imagem temporária
-                os.remove(temp_image_path)
-
-                # Adicionar resultado à lista
+                # Adicionar resultado à lista mantendo o formato original
                 results.append({
                     'frame': index,
                     'emotion': emotion_value,
@@ -118,20 +111,26 @@ def analyze_emotion():
                     'category': emotion_category
                 })
 
-                # Prints de debug
-                print(f"Frame {index} - Emoção dominante detectada: {dominant_emotion}")
-                print(f"Frame {index} - Categoria mapeada: {emotion_category}")
-                print(f"Frame {index} - Valor final (0 ou 1): {emotion_value}")
+                # Remover a imagem temporária
+                os.remove(temp_image_path)
 
             except Exception as e:
-                # Continuar com o próximo frame em caso de erro
-                print(f"Erro ao processar frame {index}: {str(e)}")
                 results.append({
                     'frame': index,
                     'error': f"Erro ao processar frame: {str(e)}"
                 })
 
-        return jsonify({'results': results}), 200
+        # Determinar qual emoção teve maior ocorrência
+        final_emotion_value = 0 if positive_count >= negative_count else 1
+        final_dominant_emotion = "Positivo" if final_emotion_value == 0 else "Negativo"
+        print (final_dominant_emotion)
+
+        return jsonify({
+            'results': results,
+            'emotion': final_emotion_value,  # Mantém o formato esperado (0 ou 1)
+            'dominant_emotion': final_dominant_emotion,
+            'category': "positiva" if final_emotion_value == 0 else "negativa"
+        }), 200
 
     except Exception as e:
         return jsonify({'error': f"Erro geral: {str(e)}"}), 500
