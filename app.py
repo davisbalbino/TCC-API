@@ -18,6 +18,11 @@ OUTPUT_FOLDER = "output_images"
 if not os.path.exists(OUTPUT_FOLDER):
     os.makedirs(OUTPUT_FOLDER)
 
+# Mesma coisa só que para imagem sem o filtro
+OUTPUT_FOLDER_NO_FILTER = "output_images_no_filter"
+if not os.path.exists(OUTPUT_FOLDER_NO_FILTER):
+    os.makedirs(OUTPUT_FOLDER_NO_FILTER)
+
 # Maximum number of frames to process
 MAX_FRAMES = 100
 
@@ -81,13 +86,32 @@ def analyze_emotion():
                 # Converter para RGB (remover canal de transparência)
                 if image.mode == "RGBA":
                     image = image.convert("RGB")
+                    
+                # -------------------------- não interfere (sem filtro)-----------------------------
+                
+                # Análise da imagem SEM filtro
+                no_filter_path = os.path.join(OUTPUT_FOLDER_NO_FILTER, f"image_no_filter_{index}.png")
+                image.save(no_filter_path)    
+                
+                # Detectar emoção sem filtro
+                result_no_filter = DeepFace.analyze(img_path=no_filter_path, actions=["emotion"], enforce_detection=False)
+                dominant_emotion_no_filter = result_no_filter[0]['dominant_emotion']
+                
+                # Anotar a imagem sem filtro
+                image_cv_no_filter = cv2.imread(no_filter_path)
+                cv2.putText(image_cv_no_filter, f"Emotion: {dominant_emotion_no_filter}", (10, 30),
+                            cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)  # Cor vermelha
+                cv2.imwrite(no_filter_path, image_cv_no_filter)
+                print(f"Saved annotated image without filter: {no_filter_path}")    
+                
+                # -------------------------- não interfere (sem filtro) -----------------------------           
 
                 # Pré-processa a imagem para melhor detecção facial
-                image = preprocess_image(image)
+                filtered_image = preprocess_image(image)
 
                 # Salva a imagem temporariamente para DeepFace
                 temp_image_path = os.path.join(OUTPUT_FOLDER, f"temp_image_{index}.jpg")
-                image.save(temp_image_path)
+                filtered_image.save(temp_image_path)
 
                 # Analisar emoção com DeepFace
                 result = DeepFace.analyze(img_path=temp_image_path, actions=["emotion"], enforce_detection=False)
@@ -101,12 +125,12 @@ def analyze_emotion():
 
                 # Anotar a imagem com a emoção detectada
                 cv2.putText(image_cv, f"Emotion: {dominant_emotion}", (10, 30),
-                            cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+                            cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2) # VERDE
 
                 # Salvar a imagem anotada na pasta
                 output_path = os.path.join(OUTPUT_FOLDER, f"image_{index}.png")
                 cv2.imwrite(output_path, image_cv)
-                print(f"Saved annotated image: {output_path}")
+                print(f"Saved annotated image with filter: {output_path}")
 
                 # Contabilizar emoções
                 if emotion_value == 0:
@@ -114,7 +138,7 @@ def analyze_emotion():
                 else:
                     negative_count += 1
 
-                # Adicionar resultado à lista mantendo o formato original
+                # Adicionar resultado da imagem COM filtro (resposta da API)
                 results.append({
                     'frame': index,
                     'emotion': emotion_value,
