@@ -1,4 +1,3 @@
-
 import base64
 from flask import Flask, jsonify, request
 from flask_cors import CORS
@@ -93,9 +92,21 @@ def analyze_emotion():
                 # Analisar emoção com DeepFace
                 result = DeepFace.analyze(img_path=temp_image_path, actions=["emotion"], enforce_detection=False)
                 dominant_emotion = result[0]['dominant_emotion']
-
+                
                 # Obter categoria e valor (0 ou 1)
                 emotion_category, emotion_value = emotion_mapping.get(dominant_emotion, ("neutra", 0))
+                
+                # Carregar a imagem com OpenCV
+                image_cv = cv2.imread(temp_image_path)
+
+                # Anotar a imagem com a emoção detectada
+                cv2.putText(image_cv, f"Emotion: {dominant_emotion}", (10, 30),
+                            cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+
+                # Salvar a imagem anotada na pasta
+                output_path = os.path.join(OUTPUT_FOLDER, f"image_{index}.png")
+                cv2.imwrite(output_path, image_cv)
+                print(f"Saved annotated image: {output_path}")
 
                 # Contabilizar emoções
                 if emotion_value == 0:
