@@ -55,6 +55,12 @@ def preprocess_image(image_pil):
     image_rgb = cv2.cvtColor(image_cv, cv2.COLOR_BGR2RGB)
     return Image.fromarray(image_rgb)
 
+@app.route('/api/teste', methods=['GET'])
+def teste():
+    return {
+        teste:'teste'
+    }
+
 # Rota para receber múltiplas imagens e detectar emoções
 @app.route('/api/analyze_emotion', methods=['POST'])
 def analyze_emotion():
